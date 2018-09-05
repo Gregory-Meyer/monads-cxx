@@ -1,0 +1,42 @@
+dist: trusty
+language: cpp
+cache: ccache
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - ninja-build
+      env:
+         - MATRIX_EVAL="CC='ccache gcc-8' && CXX='ccache g++-8'"
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-6.0
+          packages:
+            - clang-6.0
+            - ninja-build
+      env:
+        - MATRIX_EVAL="CC='ccache clang-6.0' && CXX='ccache clang++-6.0'"
+env:
+  global:
+    - CFLAGS="-Wall -Wextra -pedantic -Wconversion -Wshadow -Wcast-qual -Wmissing-prototypes -march=native"
+    - CXXFLAGS="-Wall -Wextra -pedantic -Wconversion -Wshadow -Wcast-qual -march=native"
+before_install:
+  - eval "${MATRIX_EVAL}"
+  - which $CC
+  - which $CXX
+  - $CC --version
+  - $CXX --version
+script:
+  - mkdir -p ./build/
+  - cd ./build/
+  - cmake .. -G Ninja
+  - ninja -j $(cat /proc/cpuinfo | grep processor | wc -l)
+  - ./test_expected
