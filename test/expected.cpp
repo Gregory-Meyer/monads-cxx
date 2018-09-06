@@ -70,7 +70,7 @@ SCENARIO("expected::Expected", "[expected][expected/expected.hpp][expected::Expe
 
     WHEN("make_expected is used with std::vector") {
         const expected::Expected<std::vector<int>, std::exception_ptr> maybe_vector =
-            expected::make_expected({ 0, 1, 2, 3 });
+            expected::make_expected<std::vector<int>>({ 0, 1, 2, 3 });
 
         THEN("it works") {
             REQUIRE(maybe_vector);
@@ -83,7 +83,7 @@ SCENARIO("expected::Expected", "[expected][expected/expected.hpp][expected::Expe
 
     WHEN("make_expected is used with std::string") {
         const expected::Expected<std::string, std::exception_ptr> maybe_string =
-            expected::make_expected(4, 'f');
+            expected::make_expected<std::string>(4, 'f');
 
         THEN("it works") {
             REQUIRE(maybe_string);

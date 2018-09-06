@@ -54,42 +54,26 @@ public:
     }
 };
 
-template <typename ...Ts>
-struct ValueArgs {
-    constexpr explicit ValueArgs(Ts ...ts) noexcept
-    : args{ std::forward_as_tuple(std::forward<Ts>(ts)...) } { }
-
-    std::tuple<Ts...> args;
-};
-
-template <typename ...Ts>
-constexpr ValueArgs<Ts&&...> make_expected(Ts &&...ts) noexcept {
-    return ValueArgs<Ts&&...>{ std::forward<Ts>(ts)... };
-}
-
 template <typename T, typename ...Ts>
-constexpr ValueArgs<std::initializer_list<T>, Ts&&...>
-make_expected(std::initializer_list<T> list, Ts &&...ts) noexcept {
-    return ValueArgs<std::initializer_list<T>, Ts&&...>{ list, std::forward<Ts>(ts)... };
+constexpr detail::ValueArgs<T, Ts&&...> make_expected(Ts &&...ts) noexcept {
+    return detail::ValueArgs<T, Ts&&...>{ std::forward<Ts>(ts)... };
 }
 
-template <typename ...Ts>
-struct ErrorArgs {
-    constexpr explicit ErrorArgs(Ts &&...ts) noexcept
-    : args{ std::forward_as_tuple(std::forward<Ts>(ts)...) } { }
-
-    std::tuple<Ts&&...> args;
-};
-
-template <typename ...Ts>
-constexpr ErrorArgs<Ts&&...> make_unexpected(Ts &&...ts) noexcept {
-    return ErrorArgs<Ts&&...>{ std::forward<Ts>(ts)... };
+template <typename T, typename U, typename ...Ts>
+constexpr detail::ValueArgs<T, std::initializer_list<U>, Ts&&...>
+make_expected(std::initializer_list<U> list, Ts &&...ts) noexcept {
+    return detail::ValueArgs<T, std::initializer_list<U>, Ts&&...>{ list, std::forward<Ts>(ts)... };
 }
 
-template <typename T, typename ...Ts>
-constexpr ErrorArgs<std::initializer_list<T>, Ts&&...>
+template <typename E, typename ...Ts>
+constexpr detail::ErrorArgs<E, Ts&&...> make_unexpected(Ts &&...ts) noexcept {
+    return detail::ErrorArgs<E, Ts&&...>{ std::forward<Ts>(ts)... };
+}
+
+template <typename E, typename T, typename ...Ts>
+constexpr detail::ErrorArgs<E, std::initializer_list<T>, Ts&&...>
 make_unexpected(std::initializer_list<T> list, Ts &&...ts) noexcept {
-    return ErrorArgs<std::initializer_list<T>, Ts&&...>{ list, std::forward<Ts>(ts)... };
+    return detail::ErrorArgs<E, std::initializer_list<T>, Ts&&...>{ list, std::forward<Ts>(ts)... };
 }
 
 template <typename T, typename E>
@@ -99,13 +83,13 @@ public:
     constexpr Expected() noexcept(std::is_nothrow_default_constructible_v<T>)
     : value_(), state_{ detail::State::Value } { }
 
-    template <typename ...Ts, std::enable_if_t<std::is_constructible_v<T, Ts&&...>, int> = 0>
-    constexpr Expected(ValueArgs<Ts...> value_args)
+    template <typename ...Ts>
+    constexpr Expected(detail::ValueArgs<T, Ts...> value_args)
     noexcept(std::is_nothrow_constructible_v<T, Ts&&...>)
     : Expected{ detail::ValueTag{ }, std::index_sequence_for<Ts...>{ }, value_args.args } { }
 
-    template <typename ...Ts, std::enable_if_t<std::is_constructible_v<E, Ts&&...>, int> = 0>
-    constexpr Expected(ErrorArgs<Ts...> error_args)
+    template <typename ...Ts>
+    constexpr Expected(detail::ErrorArgs<E, Ts...> error_args)
     noexcept(std::is_nothrow_constructible_v<E, Ts&&...>)
     : Expected{ detail::ErrorTag{ }, std::index_sequence_for<Ts...>{ }, error_args.args } { }
 
@@ -380,10 +364,14 @@ Expected<std::invoke_result_t<C&&, As&&...>, std::exception_ptr> try_invoke(
     C &&callable,
     As &&...args
 ) noexcept {
+    using ResultT = std::invoke_result_t<C&&, As&&...>;
+
     try {
-        return make_expected(std::invoke(std::forward<C>(callable), std::forward<As>(args)...));
+        auto &&result = std::invoke(std::forward<C>(callable), std::forward<As>(args)...);
+
+        return make_expected<ResultT>(std::forward<decltype(result)>(result));
     } catch (...) {
-        return make_unexpected(std::current_exception());
+        return make_unexpected<std::exception_ptr>(std::current_exception());
     }
 }
 
