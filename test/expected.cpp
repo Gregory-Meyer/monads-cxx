@@ -29,7 +29,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <expected/expected.hpp>
+#include <monads/expected.hpp>
 
 #include "catch.hpp"
 
@@ -39,17 +39,21 @@
 
 using namespace std::literals;
 
-SCENARIO("expected::Expected", "[expected][expected/expected.hpp][expected::Expected]") {
-    const auto maybe_int = expected::try_invoke([] { return 0; });
+SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") {
+    WHEN("Expected is used in a basic way") {
+        const auto maybe_int = monads::try_invoke([] { return 0; });
 
-    REQUIRE(maybe_int);
-    REQUIRE_FALSE(!maybe_int);
-    REQUIRE(maybe_int.has_value());
-    REQUIRE_FALSE(maybe_int.has_error());
-    REQUIRE(maybe_int.value() == 0);
+        THEN("it works") {
+            REQUIRE(maybe_int);
+            REQUIRE_FALSE(!maybe_int);
+            REQUIRE(maybe_int.has_value());
+            REQUIRE_FALSE(maybe_int.has_error());
+            REQUIRE(maybe_int.value() == 0);
+        }
+    }
 
     WHEN("try_invoke catches an exception") {
-        const auto maybe_string = expected::try_invoke([]() -> std::string {
+        const auto maybe_string = monads::try_invoke([]() -> std::string {
             throw std::runtime_error{ "try_invoke" };
         });
 
@@ -63,14 +67,16 @@ SCENARIO("expected::Expected", "[expected][expected/expected.hpp][expected::Expe
                 std::rethrow_exception(maybe_string.error());
                 REQUIRE(false);
             } catch (const std::runtime_error &e) {
-                REQUIRE(e.what() == "try_invoke"sv);
+                static const std::string EXPECTED = "try_invoke";
+
+                REQUIRE(e.what() == EXPECTED);
             }
         }
     }
 
     WHEN("make_expected is used with std::vector") {
-        const expected::Expected<std::vector<int>, std::exception_ptr> maybe_vector =
-            expected::make_expected<std::vector<int>>({ 0, 1, 2, 3 });
+        const monads::Expected<std::vector<int>, std::exception_ptr> maybe_vector =
+            monads::make_expected<std::vector<int>>({ 0, 1, 2, 3 });
 
         THEN("it works") {
             REQUIRE(maybe_vector);
@@ -82,8 +88,8 @@ SCENARIO("expected::Expected", "[expected][expected/expected.hpp][expected::Expe
     }
 
     WHEN("make_expected is used with std::string") {
-        const expected::Expected<std::string, std::exception_ptr> maybe_string =
-            expected::make_expected<std::string>(4, 'f');
+        const monads::Expected<std::string, std::exception_ptr> maybe_string =
+            monads::make_expected<std::string>(4, 'f');
 
         THEN("it works") {
             REQUIRE(maybe_string);
@@ -91,6 +97,31 @@ SCENARIO("expected::Expected", "[expected][expected/expected.hpp][expected::Expe
             REQUIRE(maybe_string.has_value());
             REQUIRE_FALSE(maybe_string.has_error());
             REQUIRE(maybe_string.value() == "ffff");
+        }
+    }
+
+    WHEN("make_expected is used with a temporary std::string") {
+        static const std::string EXPECTED =
+            "this string is so long it won't be collapsed into a small buffer optimization";
+
+        const monads::Expected<std::string, std::exception_ptr> maybe_string =
+            monads::make_expected<std::string>(std::string{ EXPECTED });
+
+        THEN("it works") {
+            REQUIRE(maybe_string);
+            REQUIRE_FALSE(!maybe_string);
+            REQUIRE(maybe_string.has_value());
+            REQUIRE_FALSE(maybe_string.has_error());
+            REQUIRE(maybe_string.value() == EXPECTED);
+        }
+    }
+
+    WHEN("make_expected is used in constexpr contexts") {
+        constexpr monads::Expected<int, int> maybe_int =
+            monads::make_expected<int>(0);
+
+        THEN("it works") {
+
         }
     }
 }

@@ -1,11 +1,12 @@
--I ./include/
--I ../include/
 -I ../../include/
+-I ../include/
+-I ./include/
 -march=native
 -pedantic
--std=c++17
+-std=c++14
 -Wall
 -Wcast-qual
 -Wconversion
+-Werror
 -Wextra
 -Wshadow

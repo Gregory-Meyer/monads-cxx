@@ -29,56 +29,44 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef EXPECTED_DETAIL_HPP
-#define EXPECTED_DETAIL_HPP
+#ifndef MONADS_DETAIL_INVOKE_HPP
+#define MONADS_DETAIL_INVOKE_HPP
 
+#include <monads/detail/common.hpp>
+#include <monads/detail/invoke_detail.hpp>
+
+#include <functional>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
-namespace expected::detail {
+namespace monads {
+namespace detail {
 
-struct Monostate { };
+template <typename T, typename ...As>
+using invoke_result = monads_detail_invoke_detail::invoke_result<T, void, As...>;
 
-enum class State {
-    Monostate,
-    Value,
-    Error
-};
+template <typename T, typename ...As>
+using invoke_result_t = typename invoke_result<T, As...>::type;
 
-struct ValueTag { };
+template <typename T, typename ...As>
+using is_invocable = monads_detail_invoke_detail::is_invocable<T, As...>;
 
-struct ErrorTag { };
+template <typename T, typename ...As>
+using is_nothrow_invocable =
+    monads_detail_invoke_detail::is_nothrow_invocable<T, void, As...>;
 
-template <typename T, typename ...Ts>
-struct ValueArgs {
-    static_assert(std::is_constructible_v<T, Ts...>);
+template <typename C, typename ...As, std::enable_if_t<is_invocable<C, As...>::value, int> = 0>
+constexpr invoke_result_t<C, As...> invoke(C &&c, As &&...args)
+noexcept(is_nothrow_invocable<C, As...>::value) {
+    return monads_detail_invoke_detail::do_invoke(
+        monads_detail_invoke_detail::invoke_tag<C, As...>{ },
+        std::forward<C>(c),
+        std::forward<As>(args)...
+    );
+}
 
-    template <
-        typename ...Us,
-        std::enable_if_t<std::is_constructible_v<std::tuple<Ts...>, std::tuple<Us&&...>>, int> = 0
-    >
-    constexpr explicit ValueArgs(Us &&...us)
-    noexcept(std::is_nothrow_constructible_v<std::tuple<Ts...>, std::tuple<Us&&...>>)
-    : args{ std::forward_as_tuple(std::forward<Us>(us)...) } { }
-
-    std::tuple<Ts...> args;
-};
-
-template <typename E, typename ...Ts>
-struct ErrorArgs {
-    static_assert(std::is_constructible_v<E, Ts...>);
-
-    template <
-        typename ...Us,
-        std::enable_if_t<std::is_constructible_v<std::tuple<Ts...>, std::tuple<Us&&...>>, int> = 0
-    >
-    constexpr explicit ErrorArgs(Us &&...us)
-    noexcept(std::is_nothrow_constructible_v<std::tuple<Ts...>, std::tuple<Us&&...>>)
-    : args{ std::forward_as_tuple(std::forward<Us>(us)...) } { }
-
-    std::tuple<Ts...> args;
-};
-
-} // namespace expected::detail
+} // namespace detail
+} // namespace monads
 
 #endif
