@@ -75,8 +75,9 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
     }
 
     WHEN("make_expected is used with std::vector") {
-        const monads::Expected<std::vector<int>, std::exception_ptr> maybe_vector =
-            monads::make_expected<std::vector<int>>({ 0, 1, 2, 3 });
+        const monads::Expected<std::vector<int>, std::exception_ptr> maybe_vector{
+            monads::make_expected<std::vector<int>>({ 0, 1, 2, 3 })
+        };
 
         THEN("it works") {
             REQUIRE(maybe_vector);
@@ -88,8 +89,9 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
     }
 
     WHEN("make_expected is used with std::string") {
-        const monads::Expected<std::string, std::exception_ptr> maybe_string =
-            monads::make_expected<std::string>(4, 'f');
+        const monads::Expected<std::string, std::exception_ptr> maybe_string{
+            monads::make_expected<std::string>(4, 'f')
+        };
 
         THEN("it works") {
             REQUIRE(maybe_string);
@@ -104,8 +106,9 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
         static const std::string EXPECTED =
             "this string is so long it won't be collapsed into a small buffer optimization";
 
-        const monads::Expected<std::string, std::exception_ptr> maybe_string =
-            monads::make_expected<std::string>(std::string{ EXPECTED });
+        const monads::Expected<std::string, std::exception_ptr> maybe_string{
+            monads::make_expected<std::string>(std::string{ EXPECTED })
+        };
 
         THEN("it works") {
             REQUIRE(maybe_string);
@@ -117,11 +120,20 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
     }
 
     WHEN("make_expected is used in constexpr contexts") {
-        constexpr monads::Expected<int, int> maybe_int =
-            monads::make_expected<int>(0);
+        constexpr monads::Expected<int, int> maybe_int{ monads::make_expected<int>(0) };
 
         THEN("it works") {
+            REQUIRE(maybe_int);
+            REQUIRE_FALSE(!maybe_int);
+            REQUIRE(maybe_int.has_value());
+            REQUIRE_FALSE(maybe_int.has_error());
+            REQUIRE(maybe_int.value() == 0);
 
+            static_assert(maybe_int, "maybe_int must contain a value");
+            static_assert(!(!maybe_int), "maybe_int must contain a value");
+            static_assert(maybe_int.has_value(), "maybe_int must contain a value");
+            static_assert(!maybe_int.has_error(), "maybe_int must contain a value");
+            static_assert(maybe_int.value() == 0, "maybe_int must contain 0");
         }
     }
 }
