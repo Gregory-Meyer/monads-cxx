@@ -39,4 +39,4 @@ script:
   - cd ./build/
   - cmake .. -G Ninja
   - ninja -j $(cat /proc/cpuinfo | grep processor | wc -l)
-  - ./test_expected
+  - ./test_monads
