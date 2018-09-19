@@ -38,5 +38,5 @@ script:
   - mkdir -p ./build/
   - cd ./build/
   - cmake .. -G Ninja
-  - ninja -j $(cat /proc/cpuinfo | grep processor | wc -l)
+  - ninja -j$(nproc)
   - ./test_monads
