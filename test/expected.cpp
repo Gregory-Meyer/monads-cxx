@@ -70,45 +70,31 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
                 static const std::string EXPECTED = "try_invoke";
 
                 REQUIRE(e.what() == EXPECTED);
+            } catch (...) {
+                REQUIRE(false);
             }
         }
     }
 
     WHEN("make_expected is used with std::vector") {
-        const monads::Expected<std::vector<int>, std::exception_ptr> maybe_vector{
-            monads::make_expected<std::vector<int>>({ 0, 1, 2, 3 })
-        };
+        const auto maybe_vector =
+            monads::make_expected<std::vector<int>, std::exception_ptr>();
 
         THEN("it works") {
             REQUIRE(maybe_vector);
             REQUIRE_FALSE(!maybe_vector);
             REQUIRE(maybe_vector.has_value());
             REQUIRE_FALSE(maybe_vector.has_error());
-            REQUIRE(maybe_vector.value() == std::vector<int>{ 0, 1, 2, 3 });
+            REQUIRE(maybe_vector.value() == std::vector<int>{ });
         }
     }
 
     WHEN("make_expected is used with std::string") {
-        const monads::Expected<std::string, std::exception_ptr> maybe_string{
-            monads::make_expected<std::string>(4, 'f')
-        };
-
-        THEN("it works") {
-            REQUIRE(maybe_string);
-            REQUIRE_FALSE(!maybe_string);
-            REQUIRE(maybe_string.has_value());
-            REQUIRE_FALSE(maybe_string.has_error());
-            REQUIRE(maybe_string.value() == "ffff");
-        }
-    }
-
-    WHEN("make_expected is used with a temporary std::string") {
         static const std::string EXPECTED =
             "this string is so long it won't be collapsed into a small buffer optimization";
 
-        const monads::Expected<std::string, std::exception_ptr> maybe_string{
-            monads::make_expected<std::string>(std::string{ EXPECTED })
-        };
+        const auto maybe_string =
+            monads::make_expected<std::string, std::exception_ptr>(std::string{ EXPECTED });
 
         THEN("it works") {
             REQUIRE(maybe_string);
@@ -120,7 +106,7 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
     }
 
     WHEN("make_expected is used in constexpr contexts") {
-        constexpr monads::Expected<int, int> maybe_int{ monads::make_expected<int>(0) };
+        constexpr auto maybe_int = monads::make_expected<int, int>(0);
 
         THEN("it works") {
             REQUIRE(maybe_int);
@@ -134,6 +120,43 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
             static_assert(maybe_int.has_value(), "maybe_int must contain a value");
             static_assert(!maybe_int.has_error(), "maybe_int must contain a value");
             static_assert(maybe_int.value() == 0, "maybe_int must contain 0");
+        }
+    }
+
+    WHEN("Expected::map is used with a value in a constexpr context") {
+        struct Mapper {
+            constexpr int operator()(char c) noexcept {
+                return static_cast<int>(c) + 5;
+            }
+        };
+
+        constexpr auto maybe_char = monads::make_expected<char, double>(0);
+        constexpr auto maybe_int = std::move(maybe_char).map(Mapper{ });
+
+        THEN("it works") {
+            REQUIRE(maybe_char);
+            REQUIRE(maybe_int);
+            REQUIRE(maybe_char.value() == 0);
+            REQUIRE(maybe_int.value() == 5);
+
+            static_assert(maybe_char, "");
+            static_assert(maybe_int, "");
+            static_assert(maybe_char.value() == 0, "");
+            static_assert(maybe_int.value() == 5, "");
+        }
+    }
+
+    WHEN("Expected::map is used with a string") {
+        const auto maybe_string = monads::try_invoke([] { return std::string{ "Hello, world!" }; });
+        const auto maybe_length = maybe_string
+            .map([](const std::string &str) noexcept { return str.size(); });
+
+        if (maybe_string.has_value()) {
+            REQUIRE(maybe_length);
+            REQUIRE(maybe_length.value() == 13);
+        } else if (maybe_string.has_error()) {
+            REQUIRE(!maybe_length);
+            REQUIRE(maybe_length.error() == maybe_string.error());
         }
     }
 }

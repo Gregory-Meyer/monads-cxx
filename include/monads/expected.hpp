@@ -55,71 +55,125 @@ public:
     }
 };
 
-template <typename T, typename ...Ts>
-constexpr detail::ValueArgs<T, Ts&&...> make_expected(Ts &&...ts) noexcept {
-    return detail::ValueArgs<T, Ts&&...>{ { std::forward<Ts>(ts)... } };
-}
+struct InPlaceValueType { };
 
-template <typename T, typename U, typename ...Ts>
-constexpr detail::ValueArgs<T, std::initializer_list<U>, Ts&&...>
-make_expected(std::initializer_list<U> list, Ts &&...ts) noexcept {
-    return detail::ValueArgs<T, std::initializer_list<U>, Ts&&...>{
-        { list, std::forward<Ts>(ts)... }
-    };
-}
+struct InPlaceErrorType { };
 
-template <typename E, typename ...Ts>
-constexpr detail::ErrorArgs<E, Ts&&...> make_unexpected(Ts &&...ts) noexcept {
-    return detail::ErrorArgs<E, Ts&&...>{ { std::forward<Ts>(ts)... } };
-}
+template <typename T, typename E>
+class Expected;
 
-template <typename E, typename T, typename ...Ts>
-constexpr detail::ErrorArgs<E, std::initializer_list<T>, Ts&&...>
-make_unexpected(std::initializer_list<T> list, Ts &&...ts) noexcept {
-    return detail::ErrorArgs<E, std::initializer_list<T>, Ts&&...>{
-        { list, std::forward<Ts>(ts)... }
-    };
-}
+template <typename T, typename E, typename ...Ts,
+          std::enable_if_t<std::is_nothrow_constructible<T, Ts&&...>::value, int> = 0>
+constexpr Expected<T, E> make_expected(Ts &&...ts) noexcept;
+
+template <
+    typename T,
+    typename E,
+    typename U,
+    typename ...Ts,
+    std::enable_if_t<
+        std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value,
+        int
+    > = 0
+>
+constexpr Expected<T, E> make_expected(std::initializer_list<U> list, Ts &&...ts) noexcept;
+
+template <typename T, typename E, typename ...Ts,
+          std::enable_if_t<std::is_nothrow_constructible<E, Ts&&...>::value, int> = 0>
+constexpr Expected<T, E> make_unexpected(Ts &&...ts) noexcept;
+
+template <
+    typename T,
+    typename E,
+    typename U,
+    typename ...Ts,
+    std::enable_if_t<
+        std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value,
+        int
+    > = 0
+>
+constexpr Expected<T, E> make_unexpected(std::initializer_list<U> list, Ts &&...ts) noexcept;
 
 template <typename T, typename E>
 class Expected {
 public:
+    template <typename U, typename F>
+    friend class Expected;
+
     template <std::enable_if_t<std::is_default_constructible<T>::value, int> = 0>
     constexpr Expected() noexcept(std::is_nothrow_default_constructible<T>::value)
-    : storage_{ detail::ValueTag{ } } { }
+    : storage_(detail::ValueTag{ }) { }
 
-    template <typename ...Ts>
-    constexpr explicit Expected(detail::ValueArgs<T, Ts...> value_args)
+    template <typename ...Ts, std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int> = 0>
+    constexpr Expected(InPlaceValueType, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<T, Ts&&...>::value)
-    : Expected{ detail::ValueTag{ }, value_args.args, std::index_sequence_for<Ts...>{ } } { }
+    : storage_(detail::ValueTag{ }, std::forward<Ts>(ts)...) { }
 
-    template <typename ...Ts>
-    constexpr explicit Expected(detail::ErrorArgs<E, Ts...> error_args)
+    template <
+        typename U,
+        typename ...Ts,
+        std::enable_if_t<
+            std::is_constructible<T, std::initializer_list<U>&, Ts&&...>::value,
+            int
+        > = 0
+    >
+    constexpr Expected(InPlaceValueType, std::initializer_list<U> list, Ts &&...ts)
+    noexcept(std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value)
+    : Expected{ InPlaceValueType{ }, list, std::forward<Ts>(ts)... }  { }
+
+    template <typename ...Ts, std::enable_if_t<std::is_constructible<E, Ts&&...>::value, int> = 0>
+    constexpr Expected(InPlaceErrorType, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<E, Ts&&...>::value)
-    : Expected{ detail::ErrorTag{ }, error_args.args, std::index_sequence_for<Ts...>{ } } { }
+    : storage_(detail::ErrorTag{ }, std::forward<Ts>(ts)...) { }
 
+    template <
+        typename U,
+        typename ...Ts,
+        std::enable_if_t<
+            std::is_constructible<E, std::initializer_list<U>&, Ts&&...>::value,
+            int
+        > = 0
+    >
+    constexpr Expected(InPlaceErrorType, std::initializer_list<U> list, Ts &&...ts)
+    noexcept(std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value)
+    : Expected{ InPlaceErrorType{ }, list, std::forward<Ts>(ts)... }  { }
+
+
+    template <std::enable_if_t<
+        std::is_copy_constructible<T>::value && std::is_copy_constructible<E>::value,
+        int
+    > = 0>
     Expected(const Expected &other) noexcept(
         std::is_nothrow_copy_constructible<T>::value
         && std::is_nothrow_copy_constructible<E>::value
     ) {
         if (other.has_value()) {
-            construct_value(other.storage_.value);
+            construct_value(other.unwrap());
         } else if (other.has_error()) {
-            construct_error(other.storage_.value);
+            construct_error(other.unwrap_error());
         }
     }
 
+    template <std::enable_if_t<
+        std::is_move_constructible<T>::value && std::is_move_constructible<E>::value,
+        int
+    > = 0>
     Expected(Expected &&other) noexcept(
         std::is_nothrow_move_constructible<T>::value
         && std::is_nothrow_move_constructible<E>::value
     ) {
         if (other.has_value()) {
-            construct_value(std::move(other.storage_.value));
+            construct_value(std::move(other).unwrap());
         } else if (other.has_error()) {
-            construct_error(std::move(other.storage_.error));
+            construct_error(std::move(other).unwrap_error());
         }
     }
 
+    template <std::enable_if_t<
+        std::is_copy_constructible<T>::value && std::is_copy_constructible<E>::value
+        && std::is_copy_assignable<T>::value && std::is_copy_assignable<E>::value,
+        int
+    > = 0>
     Expected& operator=(const Expected &other) noexcept(
         std::is_nothrow_copy_constructible<T>::value
         && std::is_nothrow_copy_constructible<E>::value
@@ -128,19 +182,24 @@ public:
     ) {
         if (other.has_value()) {
             if (has_value()) {
-                storage_.value = other.storage_.value;
+                unwrap() = other.unwrap();
             } else if (other.has_error()) {
-                emplace_value(other.storage_.value);
+                emplace(other.unwrap());
             }
         } else if (other.has_error()) {
             if (has_error()) {
-                storage_.error = other.storage_.error;
+                unwrap_error() = other.unwrap_error();
             } else if (other.has_value()) {
-                emplace_error(other.storage_.error);
+                emplace_error(other.unwrap_error());
             }
         }
     }
 
+    template <std::enable_if_t<
+        std::is_move_constructible<T>::value && std::is_move_constructible<E>::value
+        && std::is_move_assignable<T>::value && std::is_move_assignable<E>::value,
+        int
+    > = 0>
     Expected& operator=(Expected &&other) noexcept(
         std::is_nothrow_move_constructible<T>::value
         && std::is_nothrow_move_constructible<E>::value
@@ -149,15 +208,15 @@ public:
     ) {
         if (other.has_value()) {
             if (has_value()) {
-                storage_.value = std::move(other.storage_.value);
+                unwrap() = std::move(other).unwrap();
             } else {
-                emplace_value(std::move(other.storage_.value));
+                emplace(std::move(other).unwrap());
             }
         } else if (other.has_error()) {
             if (has_error()) {
-                storage_.error = std::move(other.storage_.error);
+                unwrap_error() = std::move(other).unwrap();
             } else {
-                emplace_error(std::move(other.storage_.error));
+                emplace_error(std::move(other).unwrap_error());
             }
         }
     }
@@ -183,7 +242,7 @@ public:
             throw BadExpectedAccess{ };
         }
 
-        return storage_.value;
+        return unwrap();
     }
 
     constexpr const T& value() const & {
@@ -191,7 +250,7 @@ public:
             throw BadExpectedAccess{ };
         }
 
-        return storage_.value;
+        return unwrap();
     }
 
     constexpr T&& value() && {
@@ -199,7 +258,7 @@ public:
             throw BadExpectedAccess{ };
         }
 
-        return std::move(storage_.value);
+        return unwrap();
     }
 
     constexpr const T&& value() const && {
@@ -207,7 +266,7 @@ public:
             throw BadExpectedAccess{ };
         }
 
-        return std::move(storage_.value);
+        return unwrap();
     }
 
     constexpr E& error() & {
@@ -223,7 +282,7 @@ public:
             throw BadExpectedAccess{ };
         }
 
-        return storage_.error;
+        return unwrap_error();
     }
 
     constexpr E&& error() && {
@@ -231,7 +290,7 @@ public:
             throw BadExpectedAccess{ };
         }
 
-        return std::move(storage_.error);
+        return unwrap_error();
     }
 
     constexpr const E&& error() const && {
@@ -239,11 +298,43 @@ public:
             throw BadExpectedAccess{ };
         }
 
+        return unwrap_error();
+    }
+
+    constexpr T& unwrap() & {
+        return storage_.value;
+    }
+
+    constexpr const T& unwrap() const & {
+        return storage_.value;
+    }
+
+    constexpr T&& unwrap() && {
+        return std::move(storage_.value);
+    }
+
+    constexpr const T&& unwrap() const && {
+        return std::move(storage_.value);
+    }
+
+    constexpr E& unwrap_error() & {
+        return storage_.error;
+    }
+
+    constexpr const E& unwrap_error() const & {
+        return storage_.error;
+    }
+
+    constexpr E&& unwrap_error() && {
+        return std::move(storage_.error);
+    }
+
+    constexpr const E&& unwrap_error() const && {
         return std::move(storage_.error);
     }
 
     template <typename ...Ts, std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int> = 0>
-    T& emplace_value(Ts &&...ts) noexcept(std::is_nothrow_constructible<T, Ts&&...>::value) {
+    T& emplace(Ts &&...ts) noexcept(std::is_nothrow_constructible<T, Ts&&...>::value) {
         storage_.reset();
 
         return construct_value(std::forward<Ts>(ts)...);
@@ -257,9 +348,9 @@ public:
             int
         > = 0
     >
-    T& emplace_value(std::initializer_list<U> list, Ts &&...ts)
+    T& emplace(std::initializer_list<U> list, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value) {
-        return emplace_value(list, std::forward<Ts>(ts)...);
+        return emplace(list, std::forward<Ts>(ts)...);
     }
 
     template <typename ...Ts, std::enable_if_t<std::is_constructible<E, Ts&&...>::value, int> = 0>
@@ -282,34 +373,171 @@ public:
         return emplace_error(list, std::forward<Ts>(ts)...);
     }
 
-private:
-    template <typename U, std::size_t ...Is>
-    constexpr Expected(detail::ValueTag, U &&u, std::index_sequence<Is...>)
-    : storage_{ detail::ValueTag{ }, std::get<Is>(std::forward<U>(u))... } { }
+    template <
+        typename C,
+        std::enable_if_t<
+            detail::is_nothrow_invocable<C&&, const T&>::value
+            && std::is_nothrow_copy_constructible<E>::value,
+            int
+        > = 0
+    >
+    constexpr Expected<detail::invoke_result_t<C&&, const T&>, E> map(C &&callable)
+    const & noexcept {
+        using U = detail::invoke_result_t<C&&, const T&>;
 
-    template <typename U, std::size_t ...Is>
-    constexpr Expected(detail::ErrorTag, U &&u, std::index_sequence<Is...>)
-    : storage_{ detail::ErrorTag{ }, std::get<Is>(std::forward<U>(u))... } { }
+        if (has_error()) {
+            return make_unexpected<U, E>(unwrap_error());
+        } else if (!has_value()) {
+            return Expected<U, E>{ detail::Monostate{ } };
+        }
+
+        auto &&result = detail::invoke(std::forward<C>(callable), unwrap());
+
+        return make_expected<U, E>(std::forward<decltype(result)>(result));
+    }
+
+    template <
+        typename C,
+        std::enable_if_t<
+            detail::is_nothrow_invocable<C&&, T&&>::value
+            && std::is_nothrow_move_constructible<E>::value,
+            int
+        > = 0
+    >
+    constexpr Expected<detail::invoke_result_t<C&&, T&&>, E> map(C &&callable)
+    && noexcept {
+        using U = detail::invoke_result_t<C&&, T&&>;
+
+        if (has_error()) {
+            return make_unexpected<U, E>(std::move(storage_.error));
+        } else if (!has_value()) {
+            return Expected<U, E>{ detail::Monostate{ } };
+        }
+
+        auto &&result = detail::invoke(std::forward<C>(callable), unwrap());
+
+        return make_expected<U, E>(std::forward<decltype(result)>(result));
+    }
+
+    template <
+        typename C,
+        std::enable_if_t<
+            detail::is_nothrow_invocable<C&&, const E&>::value
+            && std::is_nothrow_copy_constructible<T>::value,
+            int
+        > = 0
+    >
+    constexpr Expected<T, detail::invoke_result_t<C&&, const E&>> map_error(C &&callable)
+    const & noexcept {
+        using F = detail::invoke_result_t<C&&, const E&>;
+
+        if (has_value()) {
+            return make_expected<T, F>(storage_.value);
+        } else if (!has_error()) {
+            return Expected<T, F>{ detail::Monostate{ } };
+        }
+
+        auto &&result = detail::invoke(std::forward<C>(callable), unwrap_error());
+
+        return make_unexpected<T, F>(std::forward<decltype(result)>(result));
+    }
+
+    template <
+        typename C,
+        std::enable_if_t<
+            detail::is_nothrow_invocable<C&&, E&&>::value
+            && std::is_nothrow_move_constructible<T>::value,
+            int
+        > = 0
+    >
+    constexpr Expected<T, detail::invoke_result_t<C&&, E&&>> map_error(C &&callable)
+    && noexcept {
+        using F = detail::invoke_result_t<C&&, E&&>;
+
+        if (has_value()) {
+            return make_expected<T, F>(std::move(storage_.value));
+        } else if (!has_error()) {
+            return Expected<T, F>{ detail::Monostate{ } };
+        }
+
+        auto &&result = detail::invoke(std::forward<C>(callable), unwrap_error());
+
+        return make_unexpected<T, F>(std::forward<decltype(result)>(result));
+    }
+
+private:
+    constexpr explicit Expected(detail::Monostate) noexcept { }
 
     template <typename ...Ts, std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int> = 0>
     T& construct_value(Ts &&...args) noexcept(std::is_nothrow_constructible<T, Ts&&...>::value) {
-        ::new(std::addressof(storage_.value)) T(std::forward<Ts>(args)...);
-        storage_.state = detail::ExpectedState::Value;
+        try {
+            ::new(std::addressof(storage_.value)) T(std::forward<Ts>(args)...);
+            storage_.state = detail::ExpectedState::Value;
 
-        return storage_.value;
+            return storage_.value;
+        } catch (...) {
+            storage_.state = detail::ExpectedState::Monostate;
+
+            throw;
+        }
     }
 
     template <typename ...Ts, std::enable_if_t<std::is_constructible<E, Ts&&...>::value, int> = 0>
     E& construct_error(Ts &&...args) noexcept(std::is_nothrow_constructible<E, Ts&&...>::value) {
-        ::new(std::addressof(storage_.value)) E(std::forward<Ts>(args)...);
-        storage_.state = detail::ExpectedState::Error;
+        try {
+            ::new(std::addressof(storage_.value)) E(std::forward<Ts>(args)...);
+            storage_.state = detail::ExpectedState::Error;
 
-        return storage_.error;
+            return storage_.error;
+        } catch (...) {
+            storage_.state = detail::ExpectedState::Monostate;
+
+            throw;
+        }
     }
 
 
     detail::ExpectedStorage<T, E> storage_;
 };
+
+template <typename T, typename E, typename ...Ts,
+          std::enable_if_t<std::is_nothrow_constructible<T, Ts&&...>::value, int>>
+constexpr Expected<T, E> make_expected(Ts &&...ts) noexcept {
+    return Expected<T, E>{ InPlaceValueType{ }, std::forward<Ts>(ts)... };
+}
+
+template <
+    typename T,
+    typename E,
+    typename U,
+    typename ...Ts,
+    std::enable_if_t<
+        std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value,
+        int
+    >
+>
+constexpr Expected<T, E> make_expected(std::initializer_list<U> list, Ts &&...ts) noexcept {
+    return make_expected<T, E>(list, std::forward<Ts>(ts)...);
+}
+
+template <typename T, typename E, typename ...Ts,
+          std::enable_if_t<std::is_nothrow_constructible<E, Ts&&...>::value, int>>
+constexpr Expected<T, E> make_unexpected(Ts &&...ts) noexcept {
+    return Expected<T, E>{ InPlaceErrorType{ }, std::forward<Ts>(ts)... };
+}
+
+template <
+    typename T,
+    typename E,
+    typename U,
+    typename ...Ts,
+    std::enable_if_t<
+        std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value,
+        int>
+>
+constexpr Expected<T, E> make_unexpected(std::initializer_list<U> list, Ts &&...ts) noexcept {
+    return make_unexpected<T, E>(list, std::forward<Ts>(ts)...);
+}
 
 template <
     typename C,
@@ -319,16 +547,18 @@ template <
 Expected<detail::invoke_result_t<C&&, As&&...>, std::exception_ptr> try_invoke(
     C &&callable,
     As &&...args
-) noexcept {
-    using ResultT = detail::invoke_result_t<C&&, As&&...>;
-    using ExpectedT = Expected<ResultT, std::exception_ptr>;
+) noexcept(std::is_nothrow_constructible<
+    detail::invoke_result_t<C&&, As&&...>,
+    detail::invoke_result_t<C&&, As&&...>
+>::value) {
+    using Result = detail::invoke_result_t<C&&, As&&...>;
 
     try {
         auto &&result = detail::invoke(std::forward<C>(callable), std::forward<As>(args)...);
 
-        return ExpectedT{ make_expected<ResultT>(std::forward<decltype(result)>(result)) };
+        return make_expected<Result, std::exception_ptr>(std::forward<decltype(result)>(result));
     } catch (...) {
-        return ExpectedT{ make_unexpected<std::exception_ptr>(std::current_exception()) };
+        return make_unexpected<Result, std::exception_ptr>(std::current_exception());
     }
 }
 
