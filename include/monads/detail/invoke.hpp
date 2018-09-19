@@ -44,21 +44,20 @@ namespace monads {
 namespace detail {
 
 template <typename T, typename ...As>
-using invoke_result = monads_detail_invoke_detail::invoke_result<T, void, As...>;
+struct invoke_result : monads_detail_invoke_detail::invoke_result<T, void, As...> { };
 
 template <typename T, typename ...As>
 using invoke_result_t = typename invoke_result<T, As...>::type;
 
 template <typename T, typename ...As>
-using is_invocable = monads_detail_invoke_detail::is_invocable<T, As...>;
+struct is_invocable : monads_detail_invoke_detail::is_invocable<T, As...> { };
 
 template <typename T, typename ...As>
-using is_nothrow_invocable =
-    monads_detail_invoke_detail::is_nothrow_invocable<T, void, As...>;
+struct is_nothrow_invocable : monads_detail_invoke_detail::is_nothrow_invocable<T, void, As...> { };
 
-template <typename C, typename ...As, std::enable_if_t<is_invocable<C, As...>::value, int> = 0>
-constexpr invoke_result_t<C, As...> invoke(C &&c, As &&...args)
-noexcept(is_nothrow_invocable<C, As...>::value) {
+template <typename C, typename ...As, std::enable_if_t<is_invocable<C&&, As&&...>::value, int> = 0>
+constexpr invoke_result_t<C&&, As&&...> invoke(C &&c, As &&...args)
+noexcept(is_nothrow_invocable<C&&, As&&...>::value) {
     return monads_detail_invoke_detail::do_invoke(
         monads_detail_invoke_detail::invoke_tag<C, As...>{ },
         std::forward<C>(c),

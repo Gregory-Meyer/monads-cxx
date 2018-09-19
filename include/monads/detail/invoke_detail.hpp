@@ -246,8 +246,8 @@ struct is_nothrow_invocable : std::false_type { };
 
 template <typename C, typename ...Ts>
 struct is_nothrow_invocable<C, void_t<
-    std::enable_if_t<is_invocable<C, Ts...>::value>,
-    std::enable_if_t<invoke_traits<C, Ts...>::is_nothrow::value>
+    typename invoke_traits<invoke_tag<C, Ts...>, C, Ts...>::is_nothrow,
+    std::enable_if_t<invoke_traits<invoke_tag<C, Ts...>, C, Ts...>::is_nothrow::value>
 >, Ts...> : std::true_type { };
 
 template <typename C, typename T, typename ...Ts>
