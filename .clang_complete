@@ -1,6 +1,7 @@
--I ../../include/
--I ../include/
--I ./include/
+-I../../include/
+-I../include/
+-I./include/
+-isystem/usr/lib/clang/6.0.1/include
 -march=native
 -pedantic
 -std=c++14
