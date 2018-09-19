@@ -6,7 +6,7 @@
 
 ```c++
 const auto maybe_vec = monads::try_invoke([] -> std::vector<int> { return { 0, 1, 2, 3 }; });
-const auto maybe_size = maybe_vec.map([](const std::vector<int> &v) { return v.size() });
+const auto maybe_size = maybe_vec.map([](const std::vector<int> &v) { return v.size(); });
 
 if (maybe_vec.has_value()) {
     assert(maybe_size && maybe_size.has_value()); // explicit operator bool == has_value()
@@ -16,7 +16,7 @@ if (maybe_vec.has_value()) {
     assert(maybe_vec.value() == maybe_vec.unwrap());
     assert(maybe_size.value() == maybe_size.unwrap());
 
-    assert(maybe_vec.unwrap() == std::vector<int>{ 0, 1, 2, 3});
+    assert(maybe_vec.unwrap() == std::vector<int>{ 0, 1, 2, 3 });
     assert(maybe_size.unwrap() == 4);
 } else if (maybe_vec.has_error()) {
     assert(!maybe_size && maybe_size.has_error()); // operator! == has_error()
