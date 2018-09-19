@@ -14,7 +14,7 @@ if (maybe_vec.has_value()) {
     // value() and error() throw if !has_value() or !has_error() respectively
     // unwrap makes no such checks
     assert(maybe_vec.value() == maybe_vec.unwrap());
-    assert(maybe_size.value() == maybe_size.value());
+    assert(maybe_size.value() == maybe_size.unwrap());
 
     assert(maybe_vec.unwrap() == std::vector<int>{ 0, 1, 2, 3});
     assert(maybe_size.unwrap() == 4);
