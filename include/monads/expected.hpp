@@ -63,36 +63,34 @@ template <typename T, typename E>
 class Expected;
 
 template <typename T, typename E, typename ...Ts,
-          std::enable_if_t<std::is_nothrow_constructible<T, Ts&&...>::value, int> = 0>
-constexpr Expected<T, E> make_expected(Ts &&...ts) noexcept;
+          std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int> = 0>
+constexpr Expected<T, E> make_expected(Ts &&...ts)
+noexcept(std::is_nothrow_constructible<T, Ts&&...>::value);
 
 template <
     typename T,
     typename E,
     typename U,
     typename ...Ts,
-    std::enable_if_t<
-        std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value,
-        int
-    > = 0
+    std::enable_if_t<std::is_constructible<T, std::initializer_list<U>&, Ts&&...>::value, int> = 0
 >
-constexpr Expected<T, E> make_expected(std::initializer_list<U> list, Ts &&...ts) noexcept;
+constexpr Expected<T, E> make_expected(std::initializer_list<U> list, Ts &&...ts)
+noexcept(std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value);
 
 template <typename T, typename E, typename ...Ts,
-          std::enable_if_t<std::is_nothrow_constructible<E, Ts&&...>::value, int> = 0>
-constexpr Expected<T, E> make_unexpected(Ts &&...ts) noexcept;
+          std::enable_if_t<std::is_constructible<E, Ts&&...>::value, int> = 0>
+constexpr Expected<T, E> make_unexpected(Ts &&...ts)
+noexcept(std::is_nothrow_constructible<E, Ts&&...>::value);
 
 template <
     typename T,
     typename E,
     typename U,
     typename ...Ts,
-    std::enable_if_t<
-        std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value,
-        int
-    > = 0
+    std::enable_if_t<std::is_constructible<E, std::initializer_list<U>&, Ts&&...>::value, int> = 0
 >
-constexpr Expected<T, E> make_unexpected(std::initializer_list<U> list, Ts &&...ts) noexcept;
+constexpr Expected<T, E> make_unexpected(std::initializer_list<U> list, Ts &&...ts)
+noexcept(std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value);
 
 template <typename T, typename E>
 class Expected {
@@ -376,13 +374,16 @@ public:
     template <
         typename C,
         std::enable_if_t<
-            detail::is_nothrow_invocable<C&&, const T&>::value
-            && std::is_nothrow_copy_constructible<E>::value,
+            detail::is_invocable<C&&, const T&>::value
+            && std::is_copy_constructible<E>::value,
             int
         > = 0
     >
-    constexpr Expected<detail::invoke_result_t<C&&, const T&>, E> map(C &&callable)
-    const & noexcept {
+    constexpr Expected<detail::invoke_result_t<C&&, const T&>, E> map(C &&callable) const &
+    noexcept(
+        detail::is_nothrow_invocable<C&&, const T&>::value
+        && std::is_nothrow_copy_constructible<E>::value
+    ) {
         using U = detail::invoke_result_t<C&&, const T&>;
 
         if (has_error()) {
@@ -399,13 +400,15 @@ public:
     template <
         typename C,
         std::enable_if_t<
-            detail::is_nothrow_invocable<C&&, T&&>::value
-            && std::is_nothrow_move_constructible<E>::value,
+            detail::is_invocable<C&&, T&&>::value
+            && std::is_move_constructible<E>::value,
             int
         > = 0
     >
-    constexpr Expected<detail::invoke_result_t<C&&, T&&>, E> map(C &&callable)
-    && noexcept {
+    constexpr Expected<detail::invoke_result_t<C&&, T&&>, E> map(C &&callable) && noexcept(
+        detail::is_nothrow_invocable<C&&, T&&>::value
+        && std::is_nothrow_move_constructible<E>::value
+    ) {
         using U = detail::invoke_result_t<C&&, T&&>;
 
         if (has_error()) {
@@ -422,13 +425,16 @@ public:
     template <
         typename C,
         std::enable_if_t<
-            detail::is_nothrow_invocable<C&&, const E&>::value
-            && std::is_nothrow_copy_constructible<T>::value,
+            detail::is_invocable<C&&, const E&>::value
+            && std::is_copy_constructible<T>::value,
             int
         > = 0
     >
-    constexpr Expected<T, detail::invoke_result_t<C&&, const E&>> map_error(C &&callable)
-    const & noexcept {
+    constexpr Expected<T, detail::invoke_result_t<C&&, const E&>> map_error(C &&callable) const &
+    noexcept(
+        detail::is_nothrow_invocable<C&&, E&&>::value
+        && std::is_nothrow_copy_constructible<T>::value
+    ) {
         using F = detail::invoke_result_t<C&&, const E&>;
 
         if (has_value()) {
@@ -445,13 +451,15 @@ public:
     template <
         typename C,
         std::enable_if_t<
-            detail::is_nothrow_invocable<C&&, E&&>::value
-            && std::is_nothrow_move_constructible<T>::value,
+            detail::is_invocable<C&&, E&&>::value
+            && std::is_move_constructible<T>::value,
             int
         > = 0
     >
-    constexpr Expected<T, detail::invoke_result_t<C&&, E&&>> map_error(C &&callable)
-    && noexcept {
+    constexpr Expected<T, detail::invoke_result_t<C&&, E&&>> map_error(C &&callable) && noexcept(
+        detail::is_nothrow_invocable<C&&, E&&>::value
+        && std::is_nothrow_move_constructible<T>::value
+    ) {
         using F = detail::invoke_result_t<C&&, E&&>;
 
         if (has_value()) {
@@ -501,8 +509,9 @@ private:
 };
 
 template <typename T, typename E, typename ...Ts,
-          std::enable_if_t<std::is_nothrow_constructible<T, Ts&&...>::value, int>>
-constexpr Expected<T, E> make_expected(Ts &&...ts) noexcept {
+          std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int>>
+constexpr Expected<T, E> make_expected(Ts &&...ts)
+noexcept(std::is_nothrow_constructible<T, Ts&&...>::value) {
     return Expected<T, E>{ InPlaceValueType{ }, std::forward<Ts>(ts)... };
 }
 
@@ -511,18 +520,17 @@ template <
     typename E,
     typename U,
     typename ...Ts,
-    std::enable_if_t<
-        std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value,
-        int
-    >
+    std::enable_if_t<std::is_constructible<T, std::initializer_list<U>&, Ts&&...>::value, int>
 >
-constexpr Expected<T, E> make_expected(std::initializer_list<U> list, Ts &&...ts) noexcept {
+constexpr Expected<T, E> make_expected(std::initializer_list<U> list, Ts &&...ts)
+noexcept(std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value) {
     return make_expected<T, E>(list, std::forward<Ts>(ts)...);
 }
 
 template <typename T, typename E, typename ...Ts,
-          std::enable_if_t<std::is_nothrow_constructible<E, Ts&&...>::value, int>>
-constexpr Expected<T, E> make_unexpected(Ts &&...ts) noexcept {
+          std::enable_if_t<std::is_constructible<E, Ts&&...>::value, int>>
+constexpr Expected<T, E> make_unexpected(Ts &&...ts)
+noexcept(std::is_nothrow_constructible<E, Ts&&...>::value) {
     return Expected<T, E>{ InPlaceErrorType{ }, std::forward<Ts>(ts)... };
 }
 
@@ -531,11 +539,10 @@ template <
     typename E,
     typename U,
     typename ...Ts,
-    std::enable_if_t<
-        std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value,
-        int>
+    std::enable_if_t<std::is_constructible<E, std::initializer_list<U>&, Ts&&...>::value, int>
 >
-constexpr Expected<T, E> make_unexpected(std::initializer_list<U> list, Ts &&...ts) noexcept {
+constexpr Expected<T, E> make_unexpected(std::initializer_list<U> list, Ts &&...ts)
+noexcept(std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value) {
     return make_unexpected<T, E>(list, std::forward<Ts>(ts)...);
 }
 
