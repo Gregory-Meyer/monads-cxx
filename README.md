@@ -5,7 +5,7 @@
 ### Examples
 
 ```c++
-const auto maybe_vec = monads::make_expected([] -> std::vector<int> { return { 0, 1, 2, 3 }; });
+const auto maybe_vec = monads::try_invoke([] -> std::vector<int> { return { 0, 1, 2, 3 }; });
 const auto maybe_size = maybe_vec.map([](const std::vector<int> &v) { return v.size() });
 
 if (maybe_vec.has_value()) {
