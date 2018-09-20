@@ -456,7 +456,7 @@ public:
     >
     constexpr Expected<T, detail::invoke_result_t<C&&, const E&>> map_error(C &&callable) const &
     noexcept(
-        detail::is_nothrow_invocable<C&&, E&&>::value
+        detail::is_nothrow_invocable<C&&, const E&>::value
         && std::is_nothrow_copy_constructible<T>::value
     ) {
         using F = detail::invoke_result_t<C&&, const E&>;
