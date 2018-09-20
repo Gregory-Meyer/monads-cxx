@@ -235,6 +235,30 @@ public:
         return !has_value();
     }
 
+    constexpr T& operator*() & {
+        return unwrap();
+    }
+
+    constexpr const T& operator*() const & {
+        return unwrap();
+    }
+
+    constexpr T&& operator*() && {
+        return unwrap();
+    }
+
+    constexpr const T&& operator*() const && {
+        return unwrap();
+    }
+
+    constexpr T* operator->() {
+        return std::addressof(unwrap());
+    }
+
+    constexpr const T* operator->() const {
+        return std::addressof(unwrap());
+    }
+
     constexpr T& value() & {
         if (!has_value()) {
             throw BadExpectedAccess{ };
