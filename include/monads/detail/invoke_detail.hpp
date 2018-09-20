@@ -115,7 +115,7 @@ struct is_paren_invocable<C, void_t<decltype(
 )>, Ts...> : std::true_type { };
 
 template <typename C, typename ...Ts>
-struct invoke_tag : std::conditional_t<
+using invoke_tag = std::conditional_t<
     is_dot_star_paren_invocable<C, void, Ts...>::value,
     dot_star_paren_tag,
     std::conditional_t<
@@ -143,7 +143,7 @@ struct invoke_tag : std::conditional_t<
             >
         >
     >
-> { };
+>;
 
 template <typename C, typename ...Ts>
 struct is_invocable : std::integral_constant<bool, !std::is_same<
