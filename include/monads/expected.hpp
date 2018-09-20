@@ -98,10 +98,6 @@ public:
     template <typename U, typename F>
     friend class Expected;
 
-    template <std::enable_if_t<std::is_default_constructible<T>::value, int> = 0>
-    constexpr Expected() noexcept(std::is_nothrow_default_constructible<T>::value)
-    : storage_(detail::ValueTag{ }) { }
-
     template <typename ...Ts, std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int> = 0>
     constexpr explicit Expected(InPlaceValueType, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<T, Ts&&...>::value)
@@ -230,6 +226,38 @@ public:
             construct_error(std::move(other).unwrap_error());
         }
     }
+
+    template <typename U, std::enable_if_t<
+        std::is_constructible<T, U&&>::value && !std::is_constructible<E, U&&>::value
+        && std::is_convertible<U&&, T>::value && !std::is_convertible<U&&, E>::value,
+        int
+    > = 0>
+    constexpr Expected(U &&u) noexcept(std::is_nothrow_constructible<T, U&&>::value)
+    : storage_{ detail::ValueTag{ }, std::forward<U>(u) } { }
+
+    template <typename U, std::enable_if_t<
+        std::is_constructible<T, U&&>::value && !std::is_constructible<E, U&&>::value
+        && !std::is_convertible<U&&, T>::value && !std::is_convertible<U&&, E>::value,
+        int
+    > = 0>
+    constexpr explicit Expected(U &&u) noexcept(std::is_nothrow_constructible<T, U&&>::value)
+    : storage_{ detail::ValueTag{ }, std::forward<U>(u) } { }
+
+    template <typename F, std::enable_if_t<
+        !std::is_constructible<T, F&&>::value && std::is_constructible<E, F&&>::value
+        && !std::is_convertible<F&&, T>::value && std::is_convertible<F&&, E>::value,
+        int
+    > = 0>
+    constexpr Expected(F &&f) noexcept(std::is_nothrow_constructible<T, F&&>::value)
+    : storage_{ detail::ValueTag{ }, std::forward<F>(f) } { }
+
+    template <typename F, std::enable_if_t<
+        !std::is_constructible<T, F&&>::value && std::is_constructible<E, F&&>::value
+        && !std::is_convertible<F&&, T>::value && !std::is_convertible<F&&, E>::value,
+        int
+    > = 0>
+    constexpr explicit Expected(F &&f) noexcept(std::is_nothrow_constructible<E, F&&>::value)
+    : storage_{ detail::ErrorTag{ }, std::forward<F>(f) } { }
 
     template <std::enable_if_t<
         std::is_copy_constructible<T>::value && std::is_copy_constructible<E>::value

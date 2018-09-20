@@ -38,6 +38,22 @@
 
 using namespace std::literals;
 
+class Identifier {
+public:
+    constexpr explicit Identifier(int base) noexcept : base_{ base } { }
+
+    constexpr explicit operator int() const noexcept {
+        return base_;
+    }
+
+    constexpr int get() const noexcept {
+        return base_;
+    }
+
+private:
+    int base_;
+};
+
 SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") {
     WHEN("Expected is used in a basic way") {
         const auto maybe_int = monads::try_invoke([] { return 0; });
@@ -179,22 +195,6 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
     }
 
     WHEN("Expected explicit conversion ctors are used") {
-        class Identifier {
-        public:
-            constexpr explicit Identifier(int base) noexcept : base_{ base } { }
-
-            constexpr operator int() const noexcept {
-                return base_;
-            }
-
-            constexpr int get() const noexcept {
-                return base_;
-            }
-
-        private:
-            int base_;
-        };
-
         static_assert(std::is_constructible<
             monads::Expected<Identifier, std::exception_ptr>,
             const monads::Expected<int, std::exception_ptr>&
@@ -221,6 +221,24 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
         THEN("they work") {
             REQUIRE(maybe_id);
             REQUIRE(maybe_id.unwrap().get() == maybe_int.unwrap());
+        }
+    }
+
+    WHEN("Expected forwarding ctors are used") {
+        static_assert(
+            std::is_constructible<monads::Expected<int, double>, const Identifier&>::value,
+            ""
+        );
+        static_assert(
+            !std::is_convertible<const Identifier&, monads::Expected<int, double>>::value,
+            ""
+        );
+
+        const monads::Expected<int, double> maybe_int{ Identifier{ 15 } };
+
+        THEN("they work") {
+            REQUIRE(maybe_int);
+            REQUIRE(maybe_int.unwrap() == 15);
         }
     }
 }
