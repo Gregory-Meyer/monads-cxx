@@ -39,6 +39,10 @@ namespace detail {
 
 struct Monostate { };
 
+struct ValueTag { };
+
+struct ErrorTag { };
+
 template <typename ...>
 using void_t = void;
 

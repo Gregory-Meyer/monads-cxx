@@ -108,12 +108,6 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
         constexpr auto maybe_int = monads::make_expected<int, int>(0);
 
         THEN("it works") {
-            REQUIRE(maybe_int);
-            REQUIRE_FALSE(!maybe_int);
-            REQUIRE(maybe_int.has_value());
-            REQUIRE_FALSE(maybe_int.has_error());
-            REQUIRE(maybe_int.value() == 0);
-
             static_assert(maybe_int, "maybe_int must contain a value");
             static_assert(!(!maybe_int), "maybe_int must contain a value");
             static_assert(maybe_int.has_value(), "maybe_int must contain a value");
@@ -133,11 +127,6 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
         constexpr auto maybe_int = std::move(maybe_char).map(Mapper{ });
 
         THEN("it works") {
-            REQUIRE(maybe_char);
-            REQUIRE(maybe_int);
-            REQUIRE(maybe_char.value() == 0);
-            REQUIRE(maybe_int.value() == 5);
-
             static_assert(maybe_char, "");
             static_assert(maybe_int, "");
             static_assert(maybe_char.value() == 0, "");
@@ -156,6 +145,82 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
         } else if (maybe_string.has_error()) {
             REQUIRE(!maybe_length);
             REQUIRE(maybe_length.error() == maybe_string.error());
+        }
+    }
+
+    WHEN("Expected implicit conversion ctors are used") {
+        static_assert(std::is_constructible<
+            monads::Expected<double, std::exception_ptr>,
+            const monads::Expected<int, std::exception_ptr>&
+        >::value, "");
+
+        static_assert(std::is_constructible<
+            monads::Expected<double, std::exception_ptr>,
+            monads::Expected<int, std::exception_ptr>&&
+        >::value, "");
+
+        static_assert(std::is_convertible<
+            const monads::Expected<int, std::exception_ptr>&,
+            monads::Expected<double, std::exception_ptr>
+        >::value, "");
+
+        static_assert(std::is_convertible<
+            monads::Expected<int, std::exception_ptr>&&,
+            monads::Expected<double, std::exception_ptr>
+        >::value, "");
+
+        const auto maybe_int = monads::make_expected<int, std::exception_ptr>(5);
+        const monads::Expected<double, std::exception_ptr> maybe_double = maybe_int;
+
+        THEN("they work") {
+            REQUIRE(maybe_double);
+            REQUIRE(maybe_double.unwrap() == double(maybe_int.unwrap()));
+        }
+    }
+
+    WHEN("Expected explicit conversion ctors are used") {
+        class Identifier {
+        public:
+            constexpr explicit Identifier(int base) noexcept : base_{ base } { }
+
+            constexpr operator int() const noexcept {
+                return base_;
+            }
+
+            constexpr int get() const noexcept {
+                return base_;
+            }
+
+        private:
+            int base_;
+        };
+
+        static_assert(std::is_constructible<
+            monads::Expected<Identifier, std::exception_ptr>,
+            const monads::Expected<int, std::exception_ptr>&
+        >::value, "");
+
+        static_assert(std::is_constructible<
+            monads::Expected<Identifier, std::exception_ptr>,
+            monads::Expected<int, std::exception_ptr>&&
+        >::value, "");
+
+        static_assert(!std::is_convertible<
+            const monads::Expected<int, std::exception_ptr>&,
+            monads::Expected<Identifier, std::exception_ptr>
+        >::value, "");
+
+        static_assert(!std::is_convertible<
+            monads::Expected<int, std::exception_ptr>&&,
+            monads::Expected<Identifier, std::exception_ptr>
+        >::value, "");
+
+        const auto maybe_int = monads::make_expected<int, std::exception_ptr>(5);
+        const monads::Expected<Identifier, std::exception_ptr> maybe_id{ maybe_int };
+
+        THEN("they work") {
+            REQUIRE(maybe_id);
+            REQUIRE(maybe_id.unwrap().get() == maybe_int.unwrap());
         }
     }
 }

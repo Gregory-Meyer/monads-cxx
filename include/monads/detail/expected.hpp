@@ -47,10 +47,6 @@ enum class ExpectedState {
     Error
 };
 
-struct ValueTag { };
-
-struct ErrorTag { };
-
 template <typename T, typename E, typename = void>
 struct ExpectedStorage {
     union {
@@ -58,6 +54,8 @@ struct ExpectedStorage {
         T value;
         E error;
     };
+
+    ExpectedState state = ExpectedState::Monostate;
 
     constexpr ExpectedStorage() noexcept : monostate{ } { }
 
@@ -74,8 +72,6 @@ struct ExpectedStorage {
     constexpr void reset() noexcept {
         state = ExpectedState::Monostate;
     }
-
-    ExpectedState state = ExpectedState::Monostate;
 };
 
 template <typename T, typename E>

@@ -103,7 +103,7 @@ public:
     : storage_(detail::ValueTag{ }) { }
 
     template <typename ...Ts, std::enable_if_t<std::is_constructible<T, Ts&&...>::value, int> = 0>
-    constexpr Expected(InPlaceValueType, Ts &&...ts)
+    constexpr explicit Expected(InPlaceValueType, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<T, Ts&&...>::value)
     : storage_(detail::ValueTag{ }, std::forward<Ts>(ts)...) { }
 
@@ -115,12 +115,12 @@ public:
             int
         > = 0
     >
-    constexpr Expected(InPlaceValueType, std::initializer_list<U> list, Ts &&...ts)
+    constexpr explicit Expected(InPlaceValueType, std::initializer_list<U> list, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<T, std::initializer_list<U>&, Ts&&...>::value)
     : Expected{ InPlaceValueType{ }, list, std::forward<Ts>(ts)... }  { }
 
     template <typename ...Ts, std::enable_if_t<std::is_constructible<E, Ts&&...>::value, int> = 0>
-    constexpr Expected(InPlaceErrorType, Ts &&...ts)
+    constexpr explicit Expected(InPlaceErrorType, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<E, Ts&&...>::value)
     : storage_(detail::ErrorTag{ }, std::forward<Ts>(ts)...) { }
 
@@ -132,7 +132,7 @@ public:
             int
         > = 0
     >
-    constexpr Expected(InPlaceErrorType, std::initializer_list<U> list, Ts &&...ts)
+    constexpr explicit Expected(InPlaceErrorType, std::initializer_list<U> list, Ts &&...ts)
     noexcept(std::is_nothrow_constructible<E, std::initializer_list<U>&, Ts&&...>::value)
     : Expected{ InPlaceErrorType{ }, list, std::forward<Ts>(ts)... }  { }
 
@@ -159,6 +159,70 @@ public:
     Expected(Expected &&other) noexcept(
         std::is_nothrow_move_constructible<T>::value
         && std::is_nothrow_move_constructible<E>::value
+    ) {
+        if (other.has_value()) {
+            construct_value(std::move(other).unwrap());
+        } else if (other.has_error()) {
+            construct_error(std::move(other).unwrap_error());
+        }
+    }
+
+    template <typename U, typename F, std::enable_if_t<
+        std::is_constructible<T, const U&>::value && std::is_constructible<E, const F&>::value
+        && std::is_convertible<const U&, T>::value && std::is_convertible<const F&, E>::value,
+        int
+    > = 0>
+    Expected(const Expected<U, F> &other) noexcept(
+        std::is_nothrow_constructible<T, const U&>::value
+        && std::is_nothrow_constructible<E, const F&>::value
+    ) {
+        if (other.has_value()) {
+            construct_value(other.unwrap());
+        } else if (other.has_error()) {
+            construct_error(other.unwrap_error());
+        }
+    }
+
+    template <typename U, typename F, std::enable_if_t<
+        std::is_constructible<T, const U&>::value && std::is_constructible<E, const F&>::value
+        && (!std::is_convertible<const U&, T>::value || !std::is_convertible<const F&, E>::value),
+        int
+    > = 0>
+    explicit Expected(const Expected<U, F> &other) noexcept(
+        std::is_nothrow_constructible<T, const U&>::value
+        && std::is_nothrow_constructible<E, const F&>::value
+    ) {
+        if (other.has_value()) {
+            construct_value(other.unwrap());
+        } else if (other.has_error()) {
+            construct_error(other.unwrap_error());
+        }
+    }
+
+    template <typename U, typename F, std::enable_if_t<
+        std::is_constructible<T, U&&>::value && std::is_constructible<E, F&&>::value
+        && std::is_convertible<U&&, T>::value && std::is_convertible<F&&, E>::value,
+        int
+    > = 0>
+    Expected(Expected<U, F> &&other) noexcept(
+        std::is_nothrow_constructible<T, U&&>::value
+        && std::is_nothrow_constructible<E, F&&>::value
+    ) {
+        if (other.has_value()) {
+            construct_value(std::move(other).unwrap());
+        } else if (other.has_error()) {
+            construct_error(std::move(other).unwrap_error());
+        }
+    }
+
+    template <typename U, typename F, std::enable_if_t<
+        std::is_convertible<T, U&&>::value && std::is_convertible<E, F&&>::value
+        && (!std::is_convertible<U&, T>::value || !std::is_convertible<F&&, E>::value),
+        int
+    > = 0>
+    explicit Expected(Expected<U, F> &&other) noexcept(
+        std::is_nothrow_constructible<T, U&&>::value
+        && std::is_nothrow_constructible<E, F&&>::value
     ) {
         if (other.has_value()) {
             construct_value(std::move(other).unwrap());
