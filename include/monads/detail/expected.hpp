@@ -41,8 +41,6 @@
 namespace monads {
 namespace detail {
 
-struct Monostate { };
-
 enum class ExpectedState {
     Monostate,
     Value,
@@ -52,20 +50,6 @@ enum class ExpectedState {
 struct ValueTag { };
 
 struct ErrorTag { };
-
-template <typename T, typename ...Ts>
-struct ValueArgs {
-    static_assert(std::is_constructible<T, Ts&&...>::value, "T must be constructible from Ts&&...");
-
-    std::tuple<Ts...> args;
-};
-
-template <typename E, typename ...Ts>
-struct ErrorArgs {
-    static_assert(std::is_constructible<E, Ts&&...>::value, "E must be constructible from Ts&&...");
-
-    std::tuple<Ts...> args;
-};
 
 template <typename T, typename E, typename = void>
 struct ExpectedStorage {

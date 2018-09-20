@@ -115,7 +115,7 @@ struct is_paren_invocable<C, void_t<decltype(
 )>, Ts...> : std::true_type { };
 
 template <typename C, typename ...Ts>
-using invoke_tag = std::conditional_t<
+struct invoke_tag : std::conditional_t<
     is_dot_star_paren_invocable<C, void, Ts...>::value,
     dot_star_paren_tag,
     std::conditional_t<
@@ -143,7 +143,7 @@ using invoke_tag = std::conditional_t<
             >
         >
     >
->;
+> { };
 
 template <typename C, typename ...Ts>
 struct is_invocable : std::integral_constant<bool, !std::is_same<
@@ -251,17 +251,14 @@ struct is_nothrow_invocable<C, void_t<
 >, Ts...> : std::true_type { };
 
 template <typename C, typename T, typename ...Ts>
-constexpr decltype(auto)
-do_invoke(dot_star_paren_tag, C &&c, T &&t, Ts &&...ts)
-noexcept(noexcept(
+constexpr decltype(auto) do_invoke(dot_star_paren_tag, C &&c, T &&t, Ts &&...ts) noexcept(noexcept(
     (std::forward<T>(t).*std::forward<C>(c))(std::forward<Ts>(ts)...)
 )) {
     return (std::forward<T>(t).*std::forward<C>(c))(std::forward<Ts>(ts)...);
 }
 
 template <typename C, typename T, typename ...Ts>
-constexpr decltype(auto)
-do_invoke(get_dot_star_paren_tag, C &&c, T &&t, Ts &&...ts)
+constexpr decltype(auto) do_invoke(get_dot_star_paren_tag, C &&c, T &&t, Ts &&...ts)
 noexcept(noexcept(
     (std::forward<T>(t).get().*std::forward<C>(c))(std::forward<Ts>(ts)...)
 )) {
@@ -271,8 +268,7 @@ noexcept(noexcept(
 }
 
 template <typename C, typename T, typename ...Ts>
-constexpr decltype(auto)
-do_invoke(star_dot_star_paren_tag, C &&c, T &&t, Ts &&...ts)
+constexpr decltype(auto) do_invoke(star_dot_star_paren_tag, C &&c, T &&t, Ts &&...ts)
 noexcept(noexcept(
     ((*std::forward<T>(t)).*std::forward<C>(c))(std::forward<Ts>(ts)...)
 )) {
@@ -280,26 +276,30 @@ noexcept(noexcept(
 }
 
 template <typename C, typename T>
-constexpr decltype(auto) do_invoke(dot_star_tag, C &&c, T &&t)
-noexcept(noexcept(std::forward<T>(t).*std::forward<C>(c))) {
+constexpr decltype(auto) do_invoke(dot_star_tag, C &&c, T &&t) noexcept(noexcept(
+    std::forward<T>(t).*std::forward<C>(c)
+)) {
     return std::forward<T>(t).*std::forward<C>(c);
 }
 
 template <typename C, typename T>
-constexpr decltype(auto) do_invoke(get_dot_star_tag, C &&c, T &&t)
-noexcept(noexcept(std::forward<T>(t).get().*std::forward<C>(c))) {
+constexpr decltype(auto) do_invoke(get_dot_star_tag, C &&c, T &&t) noexcept(noexcept(
+    std::forward<T>(t).get().*std::forward<C>(c)
+)) {
     return std::forward<T>(t).get().*std::forward<C>(c);
 }
 
 template <typename C, typename T>
-constexpr decltype(auto) do_invoke(star_dot_star_tag, C &&c, T &&t)
-noexcept(noexcept((*std::forward<T>(t)).*std::forward<C>(c))) {
+constexpr decltype(auto) do_invoke(star_dot_star_tag, C &&c, T &&t) noexcept(noexcept(
+    (*std::forward<T>(t)).*std::forward<C>(c)
+)) {
     return (*std::forward<T>(t)).*std::forward<C>(c);
 }
 
 template <typename C, typename ...Ts>
-constexpr decltype(auto) do_invoke(paren_tag, C &&c, Ts &&...ts)
-noexcept(noexcept(std::forward<C>(c)(std::forward<Ts>(ts)...))) {
+constexpr decltype(auto) do_invoke(paren_tag, C &&c, Ts &&...ts) noexcept(noexcept(
+    std::forward<C>(c)(std::forward<Ts>(ts)...)
+)) {
     return std::forward<C>(c)(std::forward<Ts>(ts)...);
 }
 

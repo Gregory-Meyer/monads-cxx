@@ -37,6 +37,8 @@
 namespace monads {
 namespace detail {
 
+struct Monostate { };
+
 template <typename ...>
 using void_t = void;
 
