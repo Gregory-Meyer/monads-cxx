@@ -528,12 +528,13 @@ public:
         using U = detail::invoke_result_t<C&&, T&&>;
 
         if (has_error()) {
-            return make_unexpected<U, E>(std::move(storage_.error));
+            return make_unexpected<U, E>(std::move(*this).unwrap_error());
         } else if (!has_value()) {
             return Expected<U, E>{ detail::Monostate{ } };
         }
 
-        auto &&result = detail::invoke(std::forward<C>(callable), unwrap());
+        auto &&result = detail::invoke(std::forward<C>(callable),
+                                       std::move(*this).unwrap());
 
         return make_expected<U, E>(std::forward<decltype(result)>(result));
     }
@@ -554,12 +555,13 @@ public:
         using F = detail::invoke_result_t<C&&, const E&>;
 
         if (has_value()) {
-            return make_expected<T, F>(storage_.value);
+            return make_expected<T, F>(unwrap());
         } else if (!has_error()) {
             return Expected<T, F>{ detail::Monostate{ } };
         }
 
-        auto &&result = detail::invoke(std::forward<C>(callable), unwrap_error());
+        auto &&result = detail::invoke(std::forward<C>(callable),
+                                       unwrap_error());
 
         return make_unexpected<T, F>(std::forward<decltype(result)>(result));
     }
@@ -579,12 +581,13 @@ public:
         using F = detail::invoke_result_t<C&&, E&&>;
 
         if (has_value()) {
-            return make_expected<T, F>(std::move(storage_.value));
+            return make_expected<T, F>(std::move(*this).unwrap());
         } else if (!has_error()) {
             return Expected<T, F>{ detail::Monostate{ } };
         }
 
-        auto &&result = detail::invoke(std::forward<C>(callable), unwrap_error());
+        auto &&result = detail::invoke(std::forward<C>(callable),
+                                       std::move(*this).unwrap_error());
 
         return make_unexpected<T, F>(std::forward<decltype(result)>(result));
     }

@@ -134,18 +134,18 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
 
     WHEN("Expected::map is used with a value in a constexpr context") {
         struct Mapper {
-            constexpr int operator()(char c) noexcept {
+            constexpr int operator()(long c) noexcept {
                 return static_cast<int>(c) + 5;
             }
         };
 
-        constexpr auto maybe_char = monads::make_expected<char, double>(0);
-        constexpr auto maybe_int = std::move(maybe_char).map(Mapper{ });
+        constexpr auto maybe_long = monads::make_expected<long, double>(0);
+        constexpr auto maybe_int = std::move(maybe_long).map(Mapper{ });
 
         THEN("it works") {
-            static_assert(maybe_char, "");
-            static_assert(maybe_int, "");
-            static_assert(maybe_char.value() == 0, "");
+            static_assert(maybe_long, "");
+            static_assert(maybe_long, "");
+            static_assert(maybe_long.value() == 0, "");
             static_assert(maybe_int.value() == 5, "");
         }
     }
