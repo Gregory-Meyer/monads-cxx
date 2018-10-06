@@ -342,6 +342,51 @@ public:
         storage_.reset();
     }
 
+    template <
+        typename C,
+        std::enable_if_t<
+            detail::is_invocable<C&&, const T&>::value,
+            int
+        > = 0
+    >
+    constexpr Optional<detail::invoke_result_t<C&&, const T&>>
+    map(C &&callable) const & noexcept(
+        detail::is_nothrow_invocable<C&&, const T&>::value
+    ) {
+        using U = detail::invoke_result_t<C&&, const T&>;
+
+        if (!has_value()) {
+            return Optional<U>{ };
+        }
+
+        auto &&result = detail::invoke(std::forward<C>(callable), unwrap());
+
+        return make_optional<U>(std::forward<decltype(result)>(result));
+    }
+
+    template <
+        typename C,
+        std::enable_if_t<
+            detail::is_invocable<C&&, T&&>::value,
+            int
+        > = 0
+    >
+    constexpr Optional<detail::invoke_result_t<C&&, T&&>>
+    map(C &&callable) && noexcept(
+        detail::is_nothrow_invocable<C&&, T&&>::value
+    ) {
+        using U = detail::invoke_result_t<C&&, T&&>;
+
+        if (!has_value()) {
+            return Optional<U>{ };
+        }
+
+        auto &&result = detail::invoke(std::forward<C>(callable),
+                                       std::move(*this).unwrap());
+
+        return make_optional<U>(std::forward<decltype(result)>(result));
+    }
+
 private:
     template <
         typename ...Ts,
