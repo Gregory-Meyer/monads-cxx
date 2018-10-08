@@ -258,4 +258,25 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
             REQUIRE(maybe_int.unwrap_error().what() == "oh no"s);
         }
     }
+
+    WHEN("try_invoke is used to catch an exception by strong pointer") {
+        using namespace std::literals;
+        using ExceptionPtr = monads::ExceptionPtr<std::exception>;
+
+        const auto maybe_int = monads::try_invoke<ExceptionPtr>(
+            []() -> int {
+                throw std::runtime_error{ "oh no" };
+            }
+        );
+
+        THEN("it works") {
+            REQUIRE_FALSE(maybe_int);
+            REQUIRE(maybe_int.has_error());
+
+            REQUIRE(maybe_int.unwrap_error().what() == "oh no"s);
+
+            const std::exception &ex = maybe_int.unwrap_error().get();
+            REQUIRE_NOTHROW(dynamic_cast<const std::runtime_error&>(ex));
+        }
+    }
 }
