@@ -33,9 +33,9 @@
 #define MONADS_EXPECTED_HPP
 
 #include <monads/detail/expected.hpp>
-#include <monads/detail/invoke.hpp>
 
 #include <monads/detail/expected_impl.hpp>
+#include <monads/detail/try_invoke.hpp>
 
 #include <exception>
 #include <functional>
@@ -114,33 +114,22 @@ noexcept(std::is_nothrow_constructible<
 }
 
 template <
+    typename E = std::exception_ptr,
     typename C,
     typename ...As,
     std::enable_if_t<detail::is_invocable<C&&, As&&...>::value, int> = 0
 >
-Expected<detail::invoke_result_t<C&&, As&&...>, std::exception_ptr> try_invoke(
+Expected<detail::invoke_result_t<C&&, As&&...>, E> try_invoke(
     C &&callable,
     As &&...args
 ) noexcept(std::is_nothrow_constructible<
     detail::invoke_result_t<C&&, As&&...>,
     detail::invoke_result_t<C&&, As&&...>
 >::value) {
-    using Result = detail::invoke_result_t<C&&, As&&...>;
-
-    try {
-        auto &&result = detail::invoke(
-            std::forward<C>(callable),
-            std::forward<As>(args)...
-        );
-
-        return make_expected<Result, std::exception_ptr>(
-            std::forward<decltype(result)>(result)
-        );
-    } catch (...) {
-        return make_unexpected<Result, std::exception_ptr>(
-            std::current_exception()
-        );
-    }
+    return detail::TryInvoker<E>{ }(
+        std::forward<C>(callable),
+        std::forward<As>(args)...
+    );
 }
 
 } // namespace monads

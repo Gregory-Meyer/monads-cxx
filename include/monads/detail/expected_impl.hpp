@@ -32,6 +32,8 @@
 #ifndef MONADS_EXPECTED_IMPL_HPP
 #define MONADS_EXPECTED_IMPL_HPP
 
+#include <monads/detail/invoke.hpp>
+
 #include <exception>
 #include <type_traits>
 #include <utility>
