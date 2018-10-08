@@ -32,6 +32,8 @@
 #include <monads/detail/expected_impl.hpp>
 #include <monads/detail/invoke.hpp>
 
+#include <monads/exception_ptr.hpp>
+
 #include <exception>
 #include <initializer_list>
 #include <type_traits>
@@ -140,6 +142,66 @@ struct TryInvoker<std::exception_ptr> {
 		>::value, int> = 0
 	>
 	Expected<invoke_result_t<C&&, Ts&&...>, std::exception_ptr> operator()(
+		C &&callable,
+		std::initializer_list<T> list,
+		Ts &&...ts
+	) noexcept(std::is_nothrow_constructible<
+	    invoke_result_t<C&&, Ts&&...>,
+	    invoke_result_t<C&&, Ts&&...>
+	>::value) {
+		return (*this)(
+			std::forward<C>(callable),
+			list,
+			std::forward<Ts>(ts)...
+		);
+	}
+};
+
+template <typename E>
+struct TryInvoker<ExceptionPtr<E>> {
+	template <
+		typename C,
+		typename ...Ts,
+		std::enable_if_t<is_invocable<C&&, Ts&&...>::value, int> = 0
+	>
+	Expected<invoke_result_t<C&&, Ts&&...>, ExceptionPtr<E>>
+	operator()(C &&callable, Ts &&...ts)
+	noexcept(std::is_nothrow_constructible<
+	    invoke_result_t<C&&, Ts&&...>,
+	    invoke_result_t<C&&, Ts&&...>
+	>::value) {
+		using Result = invoke_result_t<C&&, Ts&&...>;
+		using Expected = Expected<Result, ExceptionPtr<E>>;
+
+		try {
+			auto &&result = invoke(
+				std::forward<C>(callable),
+				std::forward<Ts>(ts)...
+			);
+
+			return Expected{
+				InPlaceValueType{ },
+				std::forward<decltype(result)>(result)
+			};
+		} catch (const E &e) {
+			return Expected{
+				InPlaceErrorType{ },
+				ExceptionPtr<E>::from_current()
+			};
+		}
+	}
+
+	template <
+		typename C,
+		typename T,
+		typename ...Ts,
+		std::enable_if_t<is_invocable<
+			C&&,
+			std::initializer_list<T>&,
+			Ts&&...
+		>::value, int> = 0
+	>
+	Expected<invoke_result_t<C&&, Ts&&...>, ExceptionPtr<E>> operator()(
 		C &&callable,
 		std::initializer_list<T> list,
 		Ts &&...ts
