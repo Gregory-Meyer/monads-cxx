@@ -241,4 +241,21 @@ SCENARIO("monads::Expected", "[monads][monads/expected.hpp][monads::Expected]") 
             REQUIRE(maybe_int.unwrap() == 15);
         }
     }
+
+    WHEN("try_invoke is used to catch an exception by value") {
+        using namespace std::literals;
+
+        const auto maybe_int = monads::try_invoke<std::runtime_error>(
+            []() -> int {
+                throw std::runtime_error{ "oh no" };
+            }
+        );
+
+        THEN("it works") {
+            REQUIRE_FALSE(maybe_int);
+            REQUIRE(maybe_int.has_error());
+
+            REQUIRE(maybe_int.unwrap_error().what() == "oh no"s);
+        }
+    }
 }
