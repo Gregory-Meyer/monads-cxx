@@ -125,7 +125,7 @@ Expected<detail::invoke_result_t<C&&, As&&...>, E> try_invoke(
 ) noexcept(std::is_nothrow_constructible<
     detail::invoke_result_t<C&&, As&&...>,
     detail::invoke_result_t<C&&, As&&...>
->::value) {
+>::value && std::is_nothrow_copy_constructible<E>::value) {
     return detail::TryInvoker<E>{ }(
         std::forward<C>(callable),
         std::forward<As>(args)...
