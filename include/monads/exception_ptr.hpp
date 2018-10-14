@@ -50,16 +50,6 @@ public:
 
 	virtual ~ExceptionPtr() = default;
 
-	static ExceptionPtr from_current() noexcept {
-		const auto current = std::current_exception();
-
-		try {
-			std::rethrow_exception(current);
-		} catch (const E &e) {
-			return ExceptionPtr{ current };
-		}
-	}
-
 	const E& get() const noexcept {
 		return thrown_.get();
 	}
@@ -68,21 +58,27 @@ public:
 		return get().what();
 	}
 
-private:
-	explicit ExceptionPtr(std::exception_ptr ptr) noexcept
-	: owner_{ ptr }, thrown_{ do_throw(ptr) } { }
+	template <typename F>
+	friend ExceptionPtr<F> current_exception();
 
-	static const E& do_throw(std::exception_ptr ptr) noexcept {
-		try {
-			std::rethrow_exception(ptr);
-		} catch (const E &e) {
-			return e;
-		}
-	}
+private:
+	explicit ExceptionPtr(std::exception_ptr ptr, const E &e) noexcept
+	: owner_{ ptr }, thrown_{ e } { }
 
 	std::exception_ptr owner_;
 	std::reference_wrapper<const E> thrown_;
 };
+
+template <typename E>
+ExceptionPtr<E> current_exception() {
+	const auto err = std::current_exception();
+
+	try {
+		std::rethrow_exception(err);
+	} catch (const E &e) {
+		return ExceptionPtr<E>{ err, e };
+	}
+}
 
 } // namespace monads
 

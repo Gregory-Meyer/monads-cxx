@@ -43,8 +43,8 @@ SCENARIO(
 		const auto eptr = []() -> monads::ExceptionPtr<std::exception> {
 			try {
 				throw std::runtime_error{ "foo bar baz" };
-			} catch (...) {
-				return monads::ExceptionPtr<std::exception>::from_current();
+			} catch (const std::exception &e) {
+				return monads::current_exception<std::exception>();
 			}
 		}();
 
