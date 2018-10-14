@@ -52,22 +52,14 @@ struct TryInvoker {
 	Expected<invoke_result_t<C&&, Ts&&...>, E> operator()(
 		C &&callable,
 		Ts &&...ts
-	) noexcept(std::is_nothrow_constructible<
-		invoke_result_t<C&&, Ts&&...>,
-		invoke_result_t<C&&, Ts&&...>
-	>::value && std::is_nothrow_copy_constructible<E>::value) {
+	) noexcept(std::is_nothrow_copy_constructible<E>::value) {
 		using Result = invoke_result_t<C&&, Ts&&...>;
 		using Expected = Expected<Result, E>;
 
 		try {
-			auto &&result = invoke(
-				std::forward<C>(callable),
-				std::forward<Ts>(ts)...
-			);
-
 			return Expected{
 				InPlaceValueType{ },
-				std::forward<decltype(result)>(result)
+				invoke(std::forward<C>(callable), std::forward<Ts>(ts)...)
 			};
 		} catch (const E &err) {
 			return Expected{ InPlaceErrorType{ }, err };
@@ -88,10 +80,7 @@ struct TryInvoker {
 		C &&callable,
 		std::initializer_list<T> list,
 		Ts &&...ts
-	) noexcept(std::is_nothrow_constructible<
-	    invoke_result_t<C&&, Ts&&...>,
-	    invoke_result_t<C&&, Ts&&...>
-	>::value && std::is_nothrow_copy_constructible<E>::value) {
+	) noexcept(std::is_nothrow_copy_constructible<E>::value) {
 		return (*this)(
 			std::forward<C>(callable),
 			list,
@@ -108,23 +97,14 @@ struct TryInvoker<std::exception_ptr> {
 		std::enable_if_t<is_invocable<C&&, Ts&&...>::value, int> = 0
 	>
 	Expected<invoke_result_t<C&&, Ts&&...>, std::exception_ptr>
-	operator()(C &&callable, Ts &&...ts)
-	noexcept(std::is_nothrow_constructible<
-	    invoke_result_t<C&&, Ts&&...>,
-	    invoke_result_t<C&&, Ts&&...>
-	>::value) {
+	operator()(C &&callable, Ts &&...ts) noexcept {
 		using Result = invoke_result_t<C&&, Ts&&...>;
 		using Expected = Expected<Result, std::exception_ptr>;
 
 		try {
-			auto &&result = invoke(
-				std::forward<C>(callable),
-				std::forward<Ts>(ts)...
-			);
-
 			return Expected{
 				InPlaceValueType{ },
-				std::forward<decltype(result)>(result)
+				invoke(std::forward<C>(callable), std::forward<Ts>(ts)...)
 			};
 		} catch (...) {
 			return Expected{ InPlaceErrorType{ }, std::current_exception() };
@@ -145,10 +125,7 @@ struct TryInvoker<std::exception_ptr> {
 		C &&callable,
 		std::initializer_list<T> list,
 		Ts &&...ts
-	) noexcept(std::is_nothrow_constructible<
-	    invoke_result_t<C&&, Ts&&...>,
-	    invoke_result_t<C&&, Ts&&...>
-	>::value) {
+	) noexcept {
 		return (*this)(
 			std::forward<C>(callable),
 			list,
@@ -165,28 +142,19 @@ struct TryInvoker<ExceptionPtr<E>> {
 		std::enable_if_t<is_invocable<C&&, Ts&&...>::value, int> = 0
 	>
 	Expected<invoke_result_t<C&&, Ts&&...>, ExceptionPtr<E>>
-	operator()(C &&callable, Ts &&...ts)
-	noexcept(std::is_nothrow_constructible<
-	    invoke_result_t<C&&, Ts&&...>,
-	    invoke_result_t<C&&, Ts&&...>
-	>::value) {
+	operator()(C &&callable, Ts &&...ts) noexcept {
 		using Result = invoke_result_t<C&&, Ts&&...>;
 		using Expected = Expected<Result, ExceptionPtr<E>>;
 
 		try {
-			auto &&result = invoke(
-				std::forward<C>(callable),
-				std::forward<Ts>(ts)...
-			);
-
 			return Expected{
 				InPlaceValueType{ },
-				std::forward<decltype(result)>(result)
+				invoke(std::forward<C>(callable), std::forward<Ts>(ts)...)
 			};
 		} catch (const E &e) {
 			return Expected{
 				InPlaceErrorType{ },
-				ExceptionPtr<E>::from_current()
+				current_exception<E>()
 			};
 		}
 	}
@@ -205,10 +173,7 @@ struct TryInvoker<ExceptionPtr<E>> {
 		C &&callable,
 		std::initializer_list<T> list,
 		Ts &&...ts
-	) noexcept(std::is_nothrow_constructible<
-	    invoke_result_t<C&&, Ts&&...>,
-	    invoke_result_t<C&&, Ts&&...>
-	>::value) {
+	) noexcept {
 		return (*this)(
 			std::forward<C>(callable),
 			list,
