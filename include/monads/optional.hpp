@@ -452,6 +452,29 @@ noexcept(std::is_nothrow_constructible<
     return make_optional<T>(list, std::forward<Ts>(ts)...);
 }
 
+template <
+    typename C,
+    typename ...As,
+    std::enable_if_t<detail::is_invocable<C&&, As&&...>::value, int> = 0
+>
+Optional<detail::invoke_result_t<C&&, As&&...>> maybe_invoke(
+    C &&callable,
+    As &&...args
+) noexcept {
+    using Optional = Optional<detail::invoke_result_t<C&&, As&&...>>;
+
+    Optional maybe_result;
+
+    try {
+        maybe_result.emplace(detail::invoke(
+            std::forward<C>(callable),
+            std::forward<As>(args)...
+        ));
+    } catch (...) { }
+
+    return maybe_result;
+}
+
 } // namespace monads
 
 #endif

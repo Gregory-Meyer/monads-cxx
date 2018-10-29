@@ -160,4 +160,18 @@ SCENARIO(
 			);
 		}
 	}
+
+	WHEN("maybe_invoke is used") {
+		const auto none = monads::maybe_invoke([]() -> int {
+			throw "nope";
+		});
+
+		const auto some = monads::maybe_invoke([] {
+			return 0;
+		});
+
+		REQUIRE_FALSE(none);
+		REQUIRE(some);
+		REQUIRE(*some == 0);
+	}
 }
